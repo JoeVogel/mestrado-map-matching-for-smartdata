@@ -64,6 +64,8 @@ for index, row in df.iterrows():
 index = 0
 while True:
 
+	# ----- Processamento -----
+
 	# Obtenha a última medição do GPS do veículo (substitua isso pelo código real de obtenção dos dados do GPS)
 	# latitude, longitude, timestamp = 
 	latitude = vehicle_data[index]["latitude"]
@@ -78,6 +80,11 @@ while True:
 
 	# Encontre o novo caminho até o destino
 	novo_caminho = nx.shortest_path(graph, source=traj_data.index[-2], target=destino, weight='length')
+
+	#TODO: buscar a velocidade máxima da via
+
+
+	# ----- Visualização (opcional)
 
 	# Visualização do novo caminho no mapa
 	m = folium.Map(location=[latitude_origem, longitude_origem], zoom_start=15)
