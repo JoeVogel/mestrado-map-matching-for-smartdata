@@ -1,31 +1,23 @@
-import osmnx as ox
+from pathlib import Path
 import pandas as pd
-from skmob import TrajDataFrame
-import networkx as nx
-import folium
-import time
 
-# Obter dados do OpenStreetMap (mapa de interesse)
-# north, south, east, west = -27.5954, -27.7266, -48.3920, -48.5805 # Região floripa
+from mappymatch import package_root
+from mappymatch.constructs.geofence import Geofence
+from mappymatch.constructs.trace import Trace
+from mappymatch.maps.nx.nx_map import NxMap
+from mappymatch.matchers.lcss.lcss import LCSSMatcher
 
-north, south, east, west = 39.7619, 39.5800, -104.6003, -105.1099
-graph = ox.graph_from_bbox(north, south, east, west, network_type='all')
+PLOT = True
 
+if PLOT:
+    import webbrowser
 
-# Escolha os nós de origem e destino com base em suas coordenadas
-#Floripa
-# latitude_origem, longitude_origem = -27.6060, -48.4450  # Coordenadas de origem
-# latitude_destino, longitude_destino = -27.6170, -48.4570  # Coordenadas de destino
-#Exemplo
-latitude_origem, longitude_origem = 39.65521, -104.919169  # Coordenadas de origem
-latitude_destino, longitude_destino = 39.737989, -104.990321  # Coordenadas de destino
+    from mappymatch.utils.plot import plot_geofence, plot_matches, plot_trace
 
-origem = ox.distance.nearest_nodes(graph, (latitude_origem, longitude_origem))
-destino = ox.distance.nearest_nodes(graph, (latitude_destino, longitude_destino))
-
-vehicle_data = []
 
 # ---- Carregar dados da simulação ------
+
+vehicle_data = []
 
 # Ao usar no veículo, todo esse bloco deverá ser removido e 
 # a leitura do dado deverá ser feita dentro do loop
@@ -33,71 +25,62 @@ vehicle_data = []
 # Com mock IMU
 
 # Gerar as coordenadas das medições do veículo
-# traj_data = TrajDataFrame(vehicle_data, timestamp=True)
 
 # imu_mock = ImuMock()
 
+# data = {'latitude':[], 'longitude':[]}
+
 # for i in range(len(imu_mock.motion_vector_list)):
-# 	latitude = imu_mock.motion_vector_list[i].pos["latitude"]
-# 	longitude = imu_mock.motion_vector_list[i].pos["longitude"]
-# 	timestamp = imu_mock.motion_vector_list[i].pos["timestamp"]
-# 	vehicle_data.append((latitude, longitude, timestamp))
+# 	data[latitude].append(imu_mock.motion_vector_list[i].pos["latitude"])
+# 	data[longitude].append(imu_mock.motion_vector_list[i].pos["longitude"])
+
+# df = pd.DataFrame.from_dict(data)
 
 
 #Com CSV
 
 # Gerar as coordenadas das medições do veículo
-traj_data = TrajDataFrame(vehicle_data, timestamp=False)
-
 df = pd.read_csv("./datasets/sample_trace_1.csv")
 
-for index, row in df.iterrows():
-    vehicle_data.append((row["latitude"], row["longitude"]))
+
+# ---- Geração dos traços (caminhos) ------
+
+print("loading trace.")
+
+# data = {'latitude':[39.655193, 39.655193], 'longitude':[-104.919294, -104.919294]}
+# df = pd.DataFrame.from_dict(data)
+
+trace = Trace.from_dataframe(df)
+
+# generate a geofence polygon that surrounds the trace; units are in meters;
+# this is used to query OSM for a small map that we can match to
+print("building geofence.")
+geofence = Geofence.from_trace(trace, padding=1e3)
 
 
+# ---- Obter mapa do OSM ------
 
-# ----- Fim dados de simulação ----
-
-
-
-# Loop para atualizar o trajeto à medida que o veículo se move
-index = 0
-while True:
-
-	# ----- Processamento -----
-
-	# Obtenha a última medição do GPS do veículo (substitua isso pelo código real de obtenção dos dados do GPS)
-	# latitude, longitude, timestamp = 
-	latitude = vehicle_data[index]["latitude"]
-	longitude = vehicle_data[index]["longitude"]
-
-	# Adicione a nova medição ao trajeto
-	# traj_data = traj_data.append({'lat': latitude, 'lng': longitude, 'datetime': timestamp}, ignore_index=True)
-	traj_data = traj_data.append({'lat': latitude, 'lng': longitude}, ignore_index=True)
-
-	# Atualize o trajeto mapeado
-	traj_data = traj_data.map_match(graph)
-
-	# Encontre o novo caminho até o destino
-	novo_caminho = nx.shortest_path(graph, source=traj_data.index[-2], target=destino, weight='length')
-
-	#TODO: buscar a velocidade máxima da via
+# uses osmnx to pull a networkx map from the OSM database
+print("pull osm map.")
+nx_map = NxMap.from_geofence(geofence)
 
 
-	# ----- Visualização (opcional)
+# ---- Map Matching ------
 
-	# Visualização do novo caminho no mapa
-	m = folium.Map(location=[latitude_origem, longitude_origem], zoom_start=15)
+print("matching .")
+matcher = LCSSMatcher(nx_map)
+match_result = matcher.match_trace(trace)
 
-	# Desenhe o trajeto mapeado no mapa
-	for node in novo_caminho:
-		node_data = graph.nodes[node]
-		folium.CircleMarker(location=[node_data['y'], node_data['x']]).add_to(m)
 
-	# Salve o mapa em um arquivo HTML (ou atualize a visualização em tempo real)
-	m.save('map_matching_and_routing_result.html')
+# ---- Visualização do traço e do resultado do Match (rua) ------
 
-	# Aguarde um intervalo antes de obter a próxima medição do GPS
-	# time.sleep(1)  # Exemplo: aguarde 1 segundo
-	index += 1
+if PLOT:
+    tmap_file = Path("trace_map.html")
+    tmap = plot_trace(trace, plot_geofence(geofence))
+    tmap.save(str(tmap_file))
+    webbrowser.open(tmap_file.absolute().as_uri())
 
+    mmap_file = Path("matches_map.html")
+    mmap = plot_matches(match_result.matches)
+    mmap.save(str(mmap_file))
+    webbrowser.open(mmap_file.absolute().as_uri())
