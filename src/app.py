@@ -1,5 +1,6 @@
 from pathlib import Path
 import pandas as pd
+import numpy as np
 
 from mappymatch import package_root
 from mappymatch.constructs.geofence import Geofence
@@ -49,6 +50,10 @@ print("loading trace.")
 
 # data = {'latitude':[39.655193, 39.655193], 'longitude':[-104.919294, -104.919294]}
 # df = pd.DataFrame.from_dict(data)
+
+# Adição de ruído (opcional), de forma a verifiar se o map matching está funcionando
+df['latitude'] += np.random.normal(0, 0.0001, points.shape[0])
+df['longitude'] += np.random.normal(0, 0.0001, points.shape[0])
 
 trace = Trace.from_dataframe(df)
 
