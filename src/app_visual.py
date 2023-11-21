@@ -18,20 +18,6 @@ if PLOT:
 
     from mappymatch.utils.plot import plot_geofence, plot_matches, plot_trace
 
-
-def _match_to_road(m):
-    d = {"road_id": m.road.road_id, "geom": m.road.geom}
-    return d
-
-def _match_to_coord(m):
-    d = {
-        "road_id": m.road.road_id,
-        "geom": Point(m.coordinate.x, m.coordinate.y),
-        "distance": m.distance,
-    }
-
-    return d
-
 # ---- Carregar dados da simulação ------
 
 # Ao usar no veículo, todo esse bloco deverá ser removido e 
@@ -74,16 +60,6 @@ def _match_to_coord(m):
 
 # Gerar as coordenadas das medições do veículo
 df = pd.read_csv("./datasets/sample_trace_1.csv")
-
-# data = {'latitude':[], 'longitude':[]}
-
-# for i in range(10):
-#     data['latitude'].append(df['latitude'][i])
-#     data['longitude'].append(df['longitude'][i])
-    
-
-# df = pd.DataFrame.from_dict(data)
-
 
 
 # ---- Geração dos traços (caminhos) ------

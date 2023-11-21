@@ -1,6 +1,7 @@
 from pathlib import Path
 import pandas as pd
 import geopandas as gpd
+import numpy as np
 
 from shapely.geometry import Point
 from imuMock import ImuMock
@@ -136,15 +137,15 @@ data['longitude'].append(complete_df['longitude'][1])
 df = pd.DataFrame.from_dict(data)
 
 # Adição de ruído (opcional), de forma a verifiar se o map matching está funcionando
-df['latitude'] += np.random.normal(0, 0.0001, points.shape[0])
-df['longitude'] += np.random.normal(0, 0.0001, points.shape[0])
+# df['latitude'] += np.random.normal(0, 0.0001, points.shape[0])
+# df['longitude'] += np.random.normal(0, 0.0001, points.shape[0])
 
 j = 2
 for j in range(len(complete_df)):
     
     route_center_latitude, route_center_longitude = map_matcher(df)  
     
-    if (latitude != None):
+    if (route_center_latitude != None):
         print('Centro de Pista: {0}, {1}'.format(route_center_latitude, route_center_longitude))
     
     if (len(df) > 10):
