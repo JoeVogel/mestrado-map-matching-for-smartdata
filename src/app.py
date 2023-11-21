@@ -135,6 +135,10 @@ data['longitude'].append(complete_df['longitude'][1])
 
 df = pd.DataFrame.from_dict(data)
 
+# Adição de ruído (opcional), de forma a verifiar se o map matching está funcionando
+df['latitude'] += np.random.normal(0, 0.0001, points.shape[0])
+df['longitude'] += np.random.normal(0, 0.0001, points.shape[0])
+
 j = 2
 for j in range(len(complete_df)):
     
