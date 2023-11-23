@@ -3,4 +3,4 @@ pandas
 mappymatch
 geopandas
 shapely
-webbrowser
+osmnx

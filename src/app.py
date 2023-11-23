@@ -2,6 +2,7 @@ from pathlib import Path
 import pandas as pd
 import geopandas as gpd
 import numpy as np
+import osmnx as ox
 
 from shapely.geometry import Point
 from imuMock import ImuMock
@@ -12,7 +13,6 @@ from mappymatch.maps.nx.nx_map import NxMap
 from mappymatch.matchers.lcss.lcss import LCSSMatcher
 from mappymatch.matchers.lcss.lcss import LCSSMatcher
 from mappymatch.utils.crs import LATLON_CRS, XY_CRS
-
 
 def match_to_road(m):
     d = {"road_id": m.road.road_id, "geom": m.road.geom}
@@ -71,7 +71,7 @@ def map_matcher(match_df):
         mid_i = int(len(coord_gdf) / 2)
         mid_coord = coord_gdf.iloc[mid_i].geometry
         
-        return mid_coord.x, mid_coord.y
+        return mid_coord.y, mid_coord.x
     else:
         return None, None
 
@@ -140,13 +140,30 @@ df = pd.DataFrame.from_dict(data)
 # df['latitude'] += np.random.normal(0, 0.0001, points.shape[0])
 # df['longitude'] += np.random.normal(0, 0.0001, points.shape[0])
 
+
+motion_vector_lst = []
+
 j = 2
-for j in range(len(complete_df)):
+# for j in range(len(complete_df)):
+for j in range(70):
     
-    route_center_latitude, route_center_longitude = map_matcher(df)  
+    route_center_latitude, route_center_longitude = map_matcher(df)
     
-    if (route_center_latitude != None):
+    if (route_center_latitude != None):        
+        print()
+        
         print('Centro de Pista: {0}, {1}'.format(route_center_latitude, route_center_longitude))
+        
+        road_data = ox.features.features_from_point((route_center_latitude, route_center_longitude), tags={'maxspeed':True}, dist=50)
+        
+        max_speed = road_data['maxspeed'].iloc[0]
+        
+        print('Velocidade máxima: {0}'.format(max_speed))
+        
+        motion_vector = {'latitude':route_center_latitude, 'longitude':route_center_longitude, 'max_speed':max_speed}
+        motion_vector_lst.append(motion_vector)
+        
+        print()
     
     if (len(df) > 10):
         df = df.iloc[1:]
@@ -157,4 +174,37 @@ for j in range(len(complete_df)):
     extended_df = pd.DataFrame(data)
     
     df = pd.concat([df, extended_df], ignore_index=True)
-    
+
+results_df = pd.DataFrame(motion_vector_lst)
+
+
+print(results_df)
+
+
+
+
+#  -------------------- Representação dos pontos no mapa -----------------------
+
+plot = False
+
+if plot:
+
+    import webbrowser
+    import folium
+
+    mid_i = int(len(results_df) / 2)
+    mid_coord = results_df.iloc[mid_i]
+
+    fmap = folium.Map(location=[mid_coord['latitude'], mid_coord['longitude']], zoom_start=11)
+
+    for z in range(len(results_df)):
+        folium.Circle(
+                location=(results_df['latitude'].iloc[z], results_df['longitude'].iloc[z]),
+                radius=2,
+                tooltip=f"Max speed: {results_df['max_speed'].iloc[z]}"
+            ).add_to(fmap)
+
+    mmap_file = Path("map.html")
+    mmap = fmap
+    mmap.save(str(mmap_file))
+    webbrowser.open(mmap_file.absolute().as_uri())
