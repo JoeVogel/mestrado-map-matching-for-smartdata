@@ -39,10 +39,17 @@ Instale os pacotes necessários:
 
     pip install -r requirements.txt
 
-Execute o arquivo src/app_visual.py
 
-    python src/app_visual.py
+No arquivo app.py, é possível escolher a fonte de dados (API ou dataset csv). Isso fica na seção "Carregar dados da simulação". Para fins de teste, faça o uso do CSV "sample_trace_1.csv". Para tal, descomente a linha:
+	
+	complete_df = pd.read_csv("./datasets/sample_trace_1.csv")
 
-Se tudo correr bem, deverá ser aberto o navegador com duas abas. Uma contendo o traço do GPS no mapa e a outra contendo os matches no mapa também.
+Execute o arquivo src/app.py
 
-Caso o navegador não abra, verifique se os arquivos trace_map.html e matches_map.html foram gerados.
+    python src/app.py
+
+Se tudo correr bem, o programa tentará gerar o centro de pista para cada leitura de GPS do CSV e em caso de encontrar a via, buscará a velocidade máxima permitida na pista. Abaixo exemplo de resultado:
+
+	Leitura GPS: 39.679324, -104.934505
+	Centro de Pista: 39.67835199999999, -104.933681
+	Velocidade máxima: 65 mph

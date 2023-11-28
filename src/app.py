@@ -6,13 +6,6 @@ import osmnx as ox
 
 from shapely.geometry import Point
 from imuMock import ImuMock
-# from mappymatch import package_root
-# from mappymatch.constructs.geofence import Geofence
-# from mappymatch.constructs.trace import Trace
-# from mappymatch.maps.nx.nx_map import NxMap
-# from mappymatch.matchers.lcss.lcss import LCSSMatcher
-# from mappymatch.matchers.lcss.lcss import LCSSMatcher
-# from mappymatch.utils.crs import LATLON_CRS, XY_CRS
 
 from mappymatch import package_root
 from mappymatch.constructs.geofence import Geofence

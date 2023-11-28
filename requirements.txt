@@ -1,7 +1,7 @@
 pathlib
 pandas
-mappymatch
 geopandas
 shapely
 osmnx
 folium
+rtree
