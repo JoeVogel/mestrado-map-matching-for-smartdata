@@ -81,7 +81,7 @@ def map_matcher(match_df):
 
 # ---- Carregar dados da simulação ------
 
-# Ao usar no veículo, todo esse bloco deverá ser removido e 
+# Ao usar no veículo, todo esse bloco deverá ser alterado para lidar com a busca dos dados de acordo com a aplicação
 # a leitura do dado deverá ser feita dentro do loop
 
 # Com mock IMU
@@ -97,8 +97,21 @@ def map_matcher(match_df):
 #Com CSV
 
 # Gerar as coordenadas das medições do veículo
-complete_df = pd.read_csv("./datasets/sample_trace_1.csv")
-# complete_df = pd.read_csv("./datasets/resultado_INSS_ajustado.csv")
+# complete_df = pd.read_csv("./datasets/sample_trace_1.csv")
+complete_df = pd.read_csv("./datasets/resultado_INSS_ajustado.csv")[30000:]
+complete_df.index = range(len(complete_df))
+
+complete_df = complete_df.round(decimals=6)
+new_lst = []
+
+i = 0
+for index, row in complete_df.iterrows():
+	if not(i % 10):
+		new_lst.append(row)
+	i = i + 1  
+
+complete_df = pd.DataFrame(new_lst) 
+complete_df.index = range(len(new_lst)) 
 
 # ----- Termino carga dos dados -----
 
@@ -134,53 +147,57 @@ nx_map = NxMap.from_geofence(geofence)
 road_list = []
 
 for u, v, d in nx_map.g.edges(data=True):
-    if not isinstance(d['osmid'], list):
-        road_list.append(d)
+	if not isinstance(d['osmid'], list):
+		if d not in road_list:
+			road_list.append(d)
 
 # Remove duplicados
 #TODO: Implementar método de remoção de duplicados
 
 motion_vector_lst = []
 
+# Loop para simulação da execução ponto a ponto
 j = 2
-# for j in range(len(complete_df)):
-for j in range(270):
+for j in range(len(complete_df)):
+# for j in range(270):
     
-    # route_center_latitude, route_center_longitude = map_matcher(df)
-    
-    point = map_matcher(df)
-    
-    # if (route_center_latitude != None):
-    if (point is not None):            
-        print()
-        
-        print('Leitura GPS: {0}, {1}'.format(df['latitude'].iloc[len(df)-1], df['longitude'].iloc[len(df)-1]))
-        
-        print('Centro de Pista: {0}, {1}'.format(point.geometry.y, point.geometry.x))     
-        
-        # TODO: Implementar busca local da velocidade
-        # road_data = list(filter(lambda element: element['osmid'] == 16986821, road_list))
-        
-        road_data = ox.features.features_from_point((point.geometry.y, point.geometry.x), tags={'maxspeed':True}, dist=50)
-        
-        max_speed = road_data['maxspeed'].iloc[0]
-        
-        print('Velocidade máxima: {0}'.format(max_speed))
-        
-        motion_vector = {'latitude':point.geometry.y, 'longitude':point.geometry.x, 'max_speed':max_speed}
-        motion_vector_lst.append(motion_vector)
-        
-        print()
-    
-    if (len(df) >= 10):
-        df = df.iloc[1:]
-    
-    new_location = {'latitude':[], 'longitude':[]}
-    new_location['latitude'].append(complete_df['latitude'][j])
-    new_location['longitude'].append(complete_df['longitude'][j])
-    new_data_df = pd.DataFrame(new_location)
-    
-    df = pd.concat([df, new_data_df], ignore_index=True)
+	point = map_matcher(df)
+
+	# if (route_center_latitude != None):
+	if (point is not None):            
+		print()
+		
+		print('Leitura GPS: {0}, {1}'.format(df['latitude'].iloc[len(df)-1], df['longitude'].iloc[len(df)-1]))
+		
+		print('Centro de Pista: {0}, {1}'.format(point.geometry.y, point.geometry.x))     
+		
+		# TODO: Implementar busca local da velocidade
+		# road_data = list(filter(lambda element: element['osmid'] == 16986821, road_list))
+		
+		max_speed = None
+
+		try:
+			road_data = ox.features.features_from_point((point.geometry.y, point.geometry.x), tags={'maxspeed':True}, dist=50)
+			max_speed = road_data['maxspeed'].iloc[0]
+		except:
+			print("Can't retrieve maxspeed")
+
+		print('Velocidade máxima: {0}'.format(max_speed))
+		
+		motion_vector = {'latitude':point.geometry.y, 'longitude':point.geometry.x, 'max_speed':max_speed}
+		motion_vector_lst.append(motion_vector)
+		
+		print()
+
+	if (len(df) >= 20):
+		df = df.iloc[1:]
+
+	new_location = {'latitude':[], 'longitude':[]}
+	new_location['latitude'].append(complete_df['latitude'][j])
+	new_location['longitude'].append(complete_df['longitude'][j])
+	new_data_df = pd.DataFrame(new_location)
+
+	df = pd.concat([df, new_data_df], ignore_index=True)
 
 results_df = pd.DataFrame(motion_vector_lst)
 
