@@ -6,6 +6,14 @@ import osmnx as ox
 
 from shapely.geometry import Point
 from imuMock import ImuMock
+# from mappymatch import package_root
+# from mappymatch.constructs.geofence import Geofence
+# from mappymatch.constructs.trace import Trace
+# from mappymatch.maps.nx.nx_map import NxMap
+# from mappymatch.matchers.lcss.lcss import LCSSMatcher
+# from mappymatch.matchers.lcss.lcss import LCSSMatcher
+# from mappymatch.utils.crs import LATLON_CRS, XY_CRS
+
 from mappymatch import package_root
 from mappymatch.constructs.geofence import Geofence
 from mappymatch.constructs.trace import Trace
@@ -13,6 +21,7 @@ from mappymatch.maps.nx.nx_map import NxMap
 from mappymatch.matchers.lcss.lcss import LCSSMatcher
 from mappymatch.matchers.lcss.lcss import LCSSMatcher
 from mappymatch.utils.crs import LATLON_CRS, XY_CRS
+
 
 def match_to_road(m):
     d = {"road_id": m.road.road_id, "geom": m.road.geom}
@@ -37,22 +46,22 @@ def map_matcher(match_df):
     # generate a geofence polygon that surrounds the trace; units are in meters;
     # this is used to query OSM for a small map that we can match to
     # print("building geofence.")
-    geofence = Geofence.from_trace(trace, padding=1e3)
+    # geofence = Geofence.from_trace(trace, padding=1e3)
 
     # ---- Obter mapa do OSM ------
 
     # uses osmnx to pull a networkx map from the OSM database
     # print("pull osm map.")
-    nx_map = NxMap.from_geofence(geofence)
+    # nx_map = NxMap.from_geofence(geofence)
 
     # ---- Map Matching ------
 
     # print("matching .")
     matcher = LCSSMatcher(nx_map)
     match_result = matcher.match_trace(trace)
-    
+
     road_df = pd.DataFrame([match_to_road(m) for m in match_result.matches if m.road])
-    
+
     if hasattr(road_df, 'road_id'):
         road_df = road_df.loc[road_df.road_id.shift() != road_df.road_id]
         
@@ -69,11 +78,13 @@ def map_matcher(match_df):
         coord_gdf = coord_gdf.to_crs(LATLON_CRS)
 
         mid_i = int(len(coord_gdf) / 2)
-        mid_coord = coord_gdf.iloc[mid_i].geometry
+        # mid_coord = coord_gdf.iloc[mid_i].geometry
+        mid_coord = coord_gdf.iloc[mid_i]
         
-        return mid_coord.y, mid_coord.x
+        # return mid_coord.y, mid_coord.x
+        return mid_coord
     else:
-        return None, None
+        return None
 
 # ---- Carregar dados da simulação ------
 
@@ -86,45 +97,19 @@ def map_matcher(match_df):
 
 # imu_mock = ImuMock()
 
-# timestamp= 1533906414550000
+# data  = imu_mock.get_gps_iot_api(1533906414540000, 1600000000000000)
 
-# step = 10000
-# data = {'latitude':[], 'longitude':[]}
-# df = pd.DataFrame.from_dict(data)
-
-# while True:
-
-#     latitude, longitude = imu_mock.get_gps_iot_api(timestamp, timestamp + step)
-    
-#     print('{0}  |  {1}  |  {2}'.format(timestamp, latitude, longitude))
-    
-#     if (latitude != []):
-        
-#         if (len(df) > 10):
-#             df = df.iloc[1:]
-        
-#         data = {'latitude':[], 'longitude':[]}
-#         data['latitude'].append(latitude)
-#         data['longitude'].append(longitude)
-#         extended_df = pd.DataFrame(data)
-        
-#         df = pd.concat([df, extended_df], ignore_index=True)
-        
-#         route_center_latitude, route_center_longitude = map_matcher(df)  
-    
-#         if (latitude != None):
-#             print('Centro de Pista: {0}, {1}'.format(route_center_latitude, route_center_longitude))
-        
-#         # Para evitar pegar o mesmo
-#         timestamp = timestamp + step
-        
-#     timestamp = timestamp + step 
-
+# complete_df = pd.DataFrame(data)
 
 #Com CSV
 
 # Gerar as coordenadas das medições do veículo
 complete_df = pd.read_csv("./datasets/sample_trace_1.csv")
+# complete_df = pd.read_csv("./datasets/resultado_INSS_ajustado.csv")
+
+# ----- Termino carga dos dados -----
+
+# ----- Processamento dos dados -----
 
 data = {'latitude':[], 'longitude':[]}
 
@@ -140,40 +125,69 @@ df = pd.DataFrame.from_dict(data)
 # df['latitude'] += np.random.normal(0, 0.0001, points.shape[0])
 # df['longitude'] += np.random.normal(0, 0.0001, points.shape[0])
 
+start_point = {'latitude': complete_df['latitude'].iloc[0], 'longitude': complete_df['longitude'].iloc[0]}
+end_point = {'latitude': complete_df['latitude'].iloc[len(complete_df)-1], 'longitude': complete_df['longitude'].iloc[len(complete_df)-1]}
+
+route_lst = []
+route_lst.append(start_point)
+route_lst.append(end_point)
+
+route_df = pd.DataFrame(route_lst)
+
+trace = Trace.from_dataframe(route_df)
+geofence = Geofence.from_trace(trace, padding=1e3)
+nx_map = NxMap.from_geofence(geofence)
+
+road_list = []
+
+for u, v, d in nx_map.g.edges(data=True):
+    if not isinstance(d['osmid'], list):
+        road_list.append(d)
+
+# Remove duplicados
+#TODO: Implementar método de remoção de duplicados
 
 motion_vector_lst = []
 
 j = 2
 # for j in range(len(complete_df)):
-for j in range(70):
+for j in range(270):
     
-    route_center_latitude, route_center_longitude = map_matcher(df)
+    # route_center_latitude, route_center_longitude = map_matcher(df)
     
-    if (route_center_latitude != None):        
+    point = map_matcher(df)
+    
+    # if (route_center_latitude != None):
+    if (point is not None):            
         print()
         
-        print('Centro de Pista: {0}, {1}'.format(route_center_latitude, route_center_longitude))
+        print('Leitura GPS: {0}, {1}'.format(df['latitude'].iloc[len(df)-1], df['longitude'].iloc[len(df)-1]))
         
-        road_data = ox.features.features_from_point((route_center_latitude, route_center_longitude), tags={'maxspeed':True}, dist=50)
+        print('Centro de Pista: {0}, {1}'.format(point.geometry.y, point.geometry.x))     
+        
+        # TODO: Implementar busca local da velocidade
+        # road_data = list(filter(lambda element: element['osmid'] == 16986821, road_list))
+        
+        road_data = ox.features.features_from_point((point.geometry.y, point.geometry.x), tags={'maxspeed':True}, dist=50)
         
         max_speed = road_data['maxspeed'].iloc[0]
         
         print('Velocidade máxima: {0}'.format(max_speed))
         
-        motion_vector = {'latitude':route_center_latitude, 'longitude':route_center_longitude, 'max_speed':max_speed}
+        motion_vector = {'latitude':point.geometry.y, 'longitude':point.geometry.x, 'max_speed':max_speed}
         motion_vector_lst.append(motion_vector)
         
         print()
     
-    if (len(df) > 10):
+    if (len(df) >= 10):
         df = df.iloc[1:]
     
-    data = {'latitude':[], 'longitude':[]}
-    data['latitude'].append(complete_df['latitude'][j])
-    data['longitude'].append(complete_df['longitude'][j])
-    extended_df = pd.DataFrame(data)
+    new_location = {'latitude':[], 'longitude':[]}
+    new_location['latitude'].append(complete_df['latitude'][j])
+    new_location['longitude'].append(complete_df['longitude'][j])
+    new_data_df = pd.DataFrame(new_location)
     
-    df = pd.concat([df, extended_df], ignore_index=True)
+    df = pd.concat([df, new_data_df], ignore_index=True)
 
 results_df = pd.DataFrame(motion_vector_lst)
 

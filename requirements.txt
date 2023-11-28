@@ -4,3 +4,4 @@ mappymatch
 geopandas
 shapely
 osmnx
+folium

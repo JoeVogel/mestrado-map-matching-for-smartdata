@@ -32,7 +32,7 @@ class ImuMock():
 			data = r.json()
 			
 			if (len(data["series"]) > 0):
-				return data["series"][0]["value"]
+				return data["series"]
 			else:
 				return []
 		
@@ -42,11 +42,18 @@ class ImuMock():
 		latitude = []
 		longitude = []
   
+		points = {'latitude':[], 'longitude':[]}
+  
 		raw_latitude = self.make_request(3300018468, t0, t1, 3)
-		raw_longitude = self.make_request(3300018468, t0, t1, 4)
   
-		if (raw_latitude != [] and raw_latitude != None):
-			latitude = raw_latitude * (180/3.14)
-			longitude = raw_longitude * (180/3.14)
+		if (len(raw_latitude) > 0):
+    
+			for i in range(len(raw_latitude)-1):
+				points["latitude"].append(raw_latitude[i]['value'] * (180/np.pi))
   
-		return latitude, longitude
+			raw_longitude = self.make_request(3300018468, t0, t1, 4)
+   
+			for j in range(len(raw_longitude)-1):
+				points["longitude"].append(raw_longitude[j]['value'] * (180/np.pi))
+  
+		return points
