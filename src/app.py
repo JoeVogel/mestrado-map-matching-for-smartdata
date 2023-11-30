@@ -3,6 +3,9 @@ import pandas as pd
 import geopandas as gpd
 import numpy as np
 import osmnx as ox
+import time
+import webbrowser
+import folium
 
 from shapely.geometry import Point
 from imuMock import ImuMock
@@ -14,6 +17,7 @@ from mappymatch.maps.nx.nx_map import NxMap
 from mappymatch.matchers.lcss.lcss import LCSSMatcher
 from mappymatch.matchers.lcss.lcss import LCSSMatcher
 from mappymatch.utils.crs import LATLON_CRS, XY_CRS
+from mappymatch.utils.plot import plot_geofence, plot_matches, plot_trace
 
 
 def match_to_road(m):
@@ -30,26 +34,12 @@ def match_to_coord(m):
     return d
 
 def map_matcher(match_df):
-    # ---- Geração dos traços (caminhos) ------
 
-    # print("loading trace.")
-
+    # É necessário criar um caminho com algumas coordenadas, para que o algoritmo consiga identificar o sentido do movimento na via
     trace = Trace.from_dataframe(match_df)
-
-    # generate a geofence polygon that surrounds the trace; units are in meters;
-    # this is used to query OSM for a small map that we can match to
-    # print("building geofence.")
-    # geofence = Geofence.from_trace(trace, padding=1e3)
-
-    # ---- Obter mapa do OSM ------
-
-    # uses osmnx to pull a networkx map from the OSM database
-    # print("pull osm map.")
-    # nx_map = NxMap.from_geofence(geofence)
 
     # ---- Map Matching ------
 
-    # print("matching .")
     matcher = LCSSMatcher(nx_map)
     match_result = matcher.match_trace(trace)
 
@@ -71,10 +61,8 @@ def map_matcher(match_df):
         coord_gdf = coord_gdf.to_crs(LATLON_CRS)
 
         mid_i = int(len(coord_gdf) / 2)
-        # mid_coord = coord_gdf.iloc[mid_i].geometry
         mid_coord = coord_gdf.iloc[mid_i]
         
-        # return mid_coord.y, mid_coord.x
         return mid_coord
     else:
         return None
@@ -97,21 +85,8 @@ def map_matcher(match_df):
 #Com CSV
 
 # Gerar as coordenadas das medições do veículo
-# complete_df = pd.read_csv("./datasets/sample_trace_1.csv")
-complete_df = pd.read_csv("./datasets/resultado_INSS_ajustado.csv")[30000:]
-complete_df.index = range(len(complete_df))
-
-complete_df = complete_df.round(decimals=6)
-new_lst = []
-
-i = 0
-for index, row in complete_df.iterrows():
-	if not(i % 10):
-		new_lst.append(row)
-	i = i + 1  
-
-complete_df = pd.DataFrame(new_lst) 
-complete_df.index = range(len(new_lst)) 
+# complete_df = pd.read_csv("./datasets/resultado_INSS_ajustado_reduzido.csv")[:5000]
+complete_df = pd.read_csv("./datasets/sample_trace_1.csv")
 
 # ----- Termino carga dos dados -----
 
@@ -141,8 +116,13 @@ route_lst.append(end_point)
 route_df = pd.DataFrame(route_lst)
 
 trace = Trace.from_dataframe(route_df)
-geofence = Geofence.from_trace(trace, padding=1e3)
+geofence = Geofence.from_trace(trace, padding=1e4)
 nx_map = NxMap.from_geofence(geofence)
+
+tmap_file = Path("trace_map.html")
+tmap = plot_trace(trace, plot_geofence(geofence))
+tmap.save(str(tmap_file))
+webbrowser.open(tmap_file.absolute().as_uri())
 
 road_list = []
 
@@ -151,53 +131,57 @@ for u, v, d in nx_map.g.edges(data=True):
 		if d not in road_list:
 			road_list.append(d)
 
-# Remove duplicados
-#TODO: Implementar método de remoção de duplicados
-
 motion_vector_lst = []
+last_road_id = ''
+max_speed = None
+
+start_time = time.time()
 
 # Loop para simulação da execução ponto a ponto
 j = 2
 for j in range(len(complete_df)):
-# for j in range(270):
     
-	point = map_matcher(df)
+    point = map_matcher(df)
 
-	# if (route_center_latitude != None):
-	if (point is not None):            
-		print()
-		
-		print('Leitura GPS: {0}, {1}'.format(df['latitude'].iloc[len(df)-1], df['longitude'].iloc[len(df)-1]))
-		
-		print('Centro de Pista: {0}, {1}'.format(point.geometry.y, point.geometry.x))     
-		
-		# TODO: Implementar busca local da velocidade
-		# road_data = list(filter(lambda element: element['osmid'] == 16986821, road_list))
-		
-		max_speed = None
+    if (point is not None):            
+        print()
+        
+        print('Leitura GPS: {0}, {1}'.format(df['latitude'].iloc[len(df)-1], df['longitude'].iloc[len(df)-1]))
+        
+        print('Centro de Pista: {0}, {1}'.format(point.geometry.y, point.geometry.x))    
 
-		try:
-			road_data = ox.features.features_from_point((point.geometry.y, point.geometry.x), tags={'maxspeed':True}, dist=50)
-			max_speed = road_data['maxspeed'].iloc[0]
-		except:
-			print("Can't retrieve maxspeed")
+        if not point.road_id == last_road_id:
+        
+            # TODO: Implementar busca local da velocidade
+            # road_data = list(filter(lambda element: element['osmid'] == 16986821, road_list))
 
-		print('Velocidade máxima: {0}'.format(max_speed))
-		
-		motion_vector = {'latitude':point.geometry.y, 'longitude':point.geometry.x, 'max_speed':max_speed}
-		motion_vector_lst.append(motion_vector)
-		
-		print()
+            try:
+                road_data = ox.features.features_from_point((point.geometry.y, point.geometry.x), tags={'maxspeed':True}, dist=50)
+                max_speed = road_data['maxspeed'].iloc[0]
+            except:
+                print("Can't retrieve maxspeed")
+            
+            last_road_id = point.road_id
+        
+        print('Velocidade máxima: {0}'.format(max_speed))
+        
+        motion_vector = {'latitude':point.geometry.y, 'longitude':point.geometry.x, 'max_speed':max_speed}
+        motion_vector_lst.append(motion_vector)
+        
+        print()
 
-	if (len(df) >= 20):
-		df = df.iloc[1:]
+    if (len(df) >= 100):
+        df = df.iloc[1:]
 
-	new_location = {'latitude':[], 'longitude':[]}
-	new_location['latitude'].append(complete_df['latitude'][j])
-	new_location['longitude'].append(complete_df['longitude'][j])
-	new_data_df = pd.DataFrame(new_location)
+    new_location = {'latitude':[], 'longitude':[]}
+    new_location['latitude'].append(complete_df['latitude'][j])
+    new_location['longitude'].append(complete_df['longitude'][j])
+    new_data_df = pd.DataFrame(new_location)
 
-	df = pd.concat([df, new_data_df], ignore_index=True)
+    df = pd.concat([df, new_data_df], ignore_index=True)
+ 
+ 
+print("--- %s seconds ---" % (time.time() - start_time))
 
 results_df = pd.DataFrame(motion_vector_lst)
 
@@ -209,12 +193,9 @@ print(results_df)
 
 #  -------------------- Representação dos pontos no mapa -----------------------
 
-plot = False
+plot = True
 
 if plot:
-
-    import webbrowser
-    import folium
 
     mid_i = int(len(results_df) / 2)
     mid_coord = results_df.iloc[mid_i]
@@ -224,7 +205,7 @@ if plot:
     for z in range(len(results_df)):
         folium.Circle(
                 location=(results_df['latitude'].iloc[z], results_df['longitude'].iloc[z]),
-                radius=2,
+                radius=5,
                 tooltip=f"Max speed: {results_df['max_speed'].iloc[z]}"
             ).add_to(fmap)
 
