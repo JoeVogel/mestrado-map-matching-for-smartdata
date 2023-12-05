@@ -6,6 +6,7 @@ import osmnx as ox
 import time
 import webbrowser
 import folium
+import overpass
 
 from shapely.geometry import Point
 from imuMock import ImuMock
@@ -15,10 +16,8 @@ from mappymatch.constructs.geofence import Geofence
 from mappymatch.constructs.trace import Trace
 from mappymatch.maps.nx.nx_map import NxMap
 from mappymatch.matchers.lcss.lcss import LCSSMatcher
-from mappymatch.matchers.lcss.lcss import LCSSMatcher
 from mappymatch.utils.crs import LATLON_CRS, XY_CRS
 from mappymatch.utils.plot import plot_geofence, plot_matches, plot_trace
-
 
 def match_to_road(m):
     d = {"road_id": m.road.road_id, "geom": m.road.geom}
@@ -36,6 +35,8 @@ def match_to_coord(m):
 def map_matcher(match_df):
 
     # É necessário criar um caminho com algumas coordenadas, para que o algoritmo consiga identificar o sentido do movimento na via
+    # Segundo a Wiki do OSM:
+    # A way is an ordered list of between 1 (!) and 2,000 nodes that define a polyline. Ways are used to represent linear features such as rivers and roads.
     trace = Trace.from_dataframe(match_df)
 
     # ---- Map Matching ------
@@ -85,8 +86,9 @@ def map_matcher(match_df):
 #Com CSV
 
 # Gerar as coordenadas das medições do veículo
-# complete_df = pd.read_csv("./datasets/resultado_INSS_ajustado_reduzido.csv")[:5000]
-complete_df = pd.read_csv("./datasets/sample_trace_1.csv")
+complete_df = pd.read_csv("./datasets/resultado_INSS_ajustado_reduzido.csv")[:5000]
+# complete_df = pd.read_csv("./datasets/sample_trace_1.csv")
+# complete_df.index = range(len(complete_df))
 
 # ----- Termino carga dos dados -----
 
