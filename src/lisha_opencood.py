@@ -28,7 +28,7 @@ class LishaOpenCood():
 		self.request_body["series"]["unit"] = unit
 		self.request_body["series"]["dev"] = dev
 
-		r = requests.get('https://iot.ufsc.br/api/get.php', json=self.request_body)
+		r = requests.get('https://iot.lisha.ufsc.br/api/get.php', json=self.request_body)
 
 		if (r.status_code == 200):
 
