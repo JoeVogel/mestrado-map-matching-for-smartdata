@@ -14,24 +14,53 @@ Essa pasta abriga os arquivos do programa, sendo eles:
 
 ### imuMock.py
 
-Arquivo responsável por importar dados à partir da API do LISHA (Software/Hardware Integration Lab da UFSC), nele são feitas as requests para a API que contém os dados do dataset A2D2 (criado pela Audi):
+Arquivo responsável por importar dados à partir da API do LISHA (Software/Hardware Integration Lab da UFSC), nele são feitas as requests para a API que contém os dados do dataset OpenCood:
 
 https://lisha.ufsc.br/SDAV+-+A2D2+SmartData+Model
 
-### app.py
+### matcher.py
 
-Programa responsável por toda a lógica de map matching e identificação de centro de pista.
+Classe responsável por toda a lógica de map matching e identificação de centro de pista.
 
-Duas maneira de utilização são demonstradas: 
+Principais métodos:
 
-1. Através de API de leitura de dados (simualação de leitura direta de sensor de GPS);
-2. Através de importação de arquivo CSV disponibilizado na pasta datasets.
+```
+def create_map(self, start_point, end_point, print_map=False)
+```
 
-Nos dois casos, o programa vai lendo os dados e fazendo o map match em tempo de execução. No terminal é demonstrado o ponto de centro de pista (Latitude e Longitude)
+Este método faz a criação de um mapa local contendo o grafo das estradas para utilização posterior
 
-### app_visual.py
+* start_point: é o ponto inicial do trajeto
+* end_point: é o ponto final do trajeto
+* print_map: caso True, ele irá gerar um arquivo HTML para representação visual do polígono utilizado para carga do grafo
 
-Este programa é muito semelhante ao app.py, porém este também cria dois arquivos de mapa para demonstração dos traços e dos matches. Estes mapas são gerados nos arquivos trace_map.html e matches_map.html
+start_point e end_point são coordenadas geográficas utilizadas para a limitação do mapa a ser carregado em memória. Isso pode ser obtido através do gerenciador de viagem ou colocado arbitráriamente 
+
+```
+def make_match(self, latitude, longitude)
+```
+
+Este método é chamado para fazer o map matching, para que o match aconteça, faz-se necessário que o cache (self.cache_df) tenha alguns registros, portanto, as primeiras execuções retornarão None, porém após algumas leituras o mpetodo retornará um Motion Vector contendo as coordendas do centro de pista e a velocidade máxima para a rua 
+
+A implementação utiliza uma versão alterada do seguinte repositório:
+
+https://github.com/NREL/mappymatch
+
+Este programa implementa o map-matching baseado no método proposto em:
+
+	Zhu, Lei, Jacob R. Holden, and Jeffrey D. Gonder.
+    "Trajectory Segmentation Map-Matching Approach for Large-Scale, High-Resolution GPS Data."
+    Transportation Research Record: Journal of the Transportation Research Board 2645 (2017): 67-75.
+
+## example
+
+Essa pasta abriga um exemplo de utilização do programa:
+
+### demonstration.py
+
+Programa para demonstração de utilização do Map Matcher. Este programa pode ser executado importando dados da API do Lisha ou via carga de Dataset
+
+Neste arquivo, note o uso do Matcher() através dos métodos: create_map() e make_match(). O primeiro cria um grafo de uma área pré-determinada, enquanto o segundo faz o Map Matching para cada leitura do GPS
 
 # Execução
 
@@ -40,16 +69,14 @@ Instale os pacotes necessários:
     pip install -r requirements.txt
 
 
-No arquivo app.py, é possível escolher a fonte de dados (API ou dataset csv). Isso fica na seção "Carregar dados da simulação". Para fins de teste, faça o uso do CSV "sample_trace_1.csv". Para tal, descomente a linha:
-	
-	complete_df = pd.read_csv("./datasets/sample_trace_1.csv")
+Execute o arquivo example/demonstration.py
 
-Execute o arquivo src/app.py
+```
+python example/demonstration.py
+```
 
-    python src/app.py
+Se tudo correr bem, o programa tentará gerar o centro de pista para cada leitura de GPS e em caso de encontrar a via, buscará a velocidade máxima permitida na pista. Abaixo exemplo de resultado:
 
-Se tudo correr bem, o programa tentará gerar o centro de pista para cada leitura de GPS do CSV e em caso de encontrar a via, buscará a velocidade máxima permitida na pista. Abaixo exemplo de resultado:
-
-	Leitura GPS: 39.679324, -104.934505
-	Centro de Pista: 39.67835199999999, -104.933681
-	Velocidade máxima: 65 mph
+```
+{'latitude': 39.719714999999994, 'longitude': -104.958337, 'max_speed': '30 mph'}
+```

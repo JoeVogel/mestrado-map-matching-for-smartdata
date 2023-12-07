@@ -1,23 +1,25 @@
 from pathlib import Path
 import pandas as pd
 import geopandas as gpd
+import sys
 
+sys.path.insert(0, './src/')
+
+from lisha_opencood import LishaOpenCood
 from matcher import Matcher
 
 # ---- Carregar dados da simulação ------
 
-# Ao usar no veículo, todo esse bloco deverá ser alterado para lidar com a busca dos dados de acordo com a aplicação
-# a leitura do dado deverá ser feita dentro do loop
-
-# Com mock IMU
+# Com API LISHA
 
 # Gerar as coordenadas das medições do veículo
 
-# imu_mock = ImuMock()
+# lisha_api = LishaOpenCood()
 
-# data  = imu_mock.get_gps_iot_api(1533906414540000, 1600000000000000)
+# data  = imu_mock.get_gps_iot_api()
 
 # complete_df = pd.DataFrame(data)
+
 
 #Com CSV
 

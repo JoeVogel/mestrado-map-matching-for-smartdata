@@ -1,5 +1,6 @@
 cache
-
+map.html
+map_matches.html
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
